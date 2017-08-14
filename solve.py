@@ -2,10 +2,15 @@ import urllib.request
 import random
 import os
 import json
+from PIL import Image
 
 base_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
 
+maze_width = 15
+maze_height = 25
 
+cells = [(maze_width * 2 + 2) * (2 * maze_height + 2)]
+cell_clusters = []
 
 valid_directions = [
 	"north",
@@ -32,8 +37,8 @@ api_calls = {
 
 def create_maze():
 	payload = {
-		"maze-width": 15,
-		"maze-height": 25,
+		"maze-width": maze_width,
+		"maze-height": maze_height,
 		"maze-player-name": random.choice(pony_names)
 	}
 	payload_json = json.dumps(payload).encode("utf-8")
@@ -88,6 +93,32 @@ def move_player(direction, maze_id):
 		json_response = json.loads(response.read().decode("utf-8"))
 		print(json_response)
 
+def create_maze_data(maze_id):
+	original_maze_data = get_maze_state(maze_id)["data"]
+	im = Image.new("RGB", (500, 500))
+
+	for y in range(0, maze_height):
+		for x in range(0, maze_width):
+			north_wall = "north" in original_maze_data[x + y * maze_width]
+			east_wall = "east" in original_maze_data[x + y * maze_width]
+			south_wall = "south" in original_maze_data[x + y * maze_width]
+			west_wall = "west" in original_maze_data[x + y * maze_width]
+			
+	im.save("test.png")
+
+			
+	print(str(cell_clusters))
+	cluster_data = ""
+	f = open("Test.TXT", "w")
+	for y in range(0, maze_height):
+		x_line = ""
+		for z in range(1, 3):
+			for x in range(0, maze_width):
+				#print("Accessing Cell [" + (x + y * maze_width))
+				x_line += cell_clusters[x + y * maze_width][:z*3]
+		f.write(x_line)
+
+	#with open(base_path + "\\new_maze.txt", w).write(data)
 
 if __name__ == "__main__":
 	if(not os.path.isdir(base_path)):
@@ -96,11 +127,13 @@ if __name__ == "__main__":
 	maze = create_maze()
 	if(maze["error"] == ""):
 		maze_id = maze["response"]
+		print("Created maze with data " + maze_id)
 		maze_payload = maze["payload"]
 		download_maze_data(maze_id, maze_payload)
-		for i in range(0, 100):
-			move_player(random.choice(valid_directions), maze_id)
-			open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(i), "w").write(get_maze_ascii(maze_id))
+		create_maze_data(maze_id)
+		#for i in range(0, 100):
+		#	move_player(random.choice(valid_directions), maze_id)
+		#	open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(i), "w").write(get_maze_ascii(maze_id))
 
 	else:
 		print(maze["error"] + " upon creating maze: " + str(maze["exception"]))
