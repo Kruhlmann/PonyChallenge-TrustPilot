@@ -12,6 +12,7 @@ from PIL import Image
 
 base_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
 
+# This is defined in the challenge. Fits nicely into a 16:9 default CMD.
 maze_width = 15
 maze_height = 25
 
@@ -27,6 +28,7 @@ valid_directions = [
 	"west"
 ]
 
+# Pulled this from the wiki, seems they are all valid; could be more.
 pony_names = [
 	"Fluttershy",
 	"Twilight Sparkle",
@@ -43,6 +45,7 @@ api_calls = {
 	"print_maze": "https://ponychallenge.trustpilot.com/pony-challenge/maze/{0}/print"
 }
 
+# Generates a maze by sending an HTTP request to the API. Maze ID is included in the JSON response
 def create_maze():
 	payload = {
 		"maze-width": maze_width,
@@ -64,29 +67,19 @@ def create_maze():
 	except urllib.error.URLError as e:
 		return {"error": "URLError", "exception": e}
 
-def download_maze_data(maze_id, payload):
-	if(os.path.isdir(base_path + "\\" + maze_id)):
-		print("Error: Maze with ID " + maze_id + " has already been processed")
-		exit()
-	else:
-		os.mkdir(base_path + "\\" + maze_id)
-		os.mkdir(base_path + "\\" + maze_id + "\\mazes")
-
-	header_file = open(base_path + "\\" + maze_id + "\\header.txt", "w")
-	initial_maze = open(base_path + "\\" + maze_id + "\\mazes\\start.txt", "w")
-	header_file.write("Maze ID: " + maze_id + "\n" + str(payload))
-	initial_maze.write(get_maze_ascii(maze_id))
-
+# Gets maze metadata in JSON from the API
 def get_maze_state(maze_id):
 	req = urllib.request.Request(api_calls["get_maze"].format(maze_id))
 	response = urllib.request.urlopen(req)
 	return json.loads(response.read().decode("utf-8"))
 
+# Gets the ASCII representation of a maze state from the API
 def get_maze_ascii(maze_id):
 	req = urllib.request.Request(api_calls["print_maze"].format(maze_id))
 	response = urllib.request.urlopen(req)
 	return response.read().decode("utf-8")
 
+# Sends an HTTP request to move the player
 def move_player(direction, maze_id):
 	if(direction not in valid_directions):
 		print("Invalid direction: " + direction)
@@ -100,6 +93,7 @@ def move_player(direction, maze_id):
 		json_response = json.loads(response.read().decode("utf-8"))
 		return(json_response)
 
+# Clear console
 def clear():
 	if os.name in ('nt','dos'):
 		subprocess.call("cls", shell=True)
@@ -108,8 +102,10 @@ def clear():
 	else:
 		print("\n"*120)
 
+# Main path finding method. Finds the exit based on distance, previous positions and a dynamic heatmap
 def find_path_to_exit(maze_id):
 
+	# Returns a list of all positions and their distance to the exit
 	def get_maze_catalog(maze):
 		catalog = []
 		for y in range(0, maze_height):
@@ -119,53 +115,38 @@ def find_path_to_exit(maze_id):
 				catalog.append(math.sqrt((x - end_point_x)**2 + (y - end_point_y)**2))
 		return catalog
 
-	def print_catalog(catalog):
-		with open(base_path + "\\" + maze_id + "\\catalog.txt", "w") as f:
-			for y in range(0, maze_height):
-				f.write("Line #" + str(y) + ":\t")
-				for x in range(0, maze_width):
-					f.write(str(int(catalog[x + y * maze_width])) + "\t")
-				f.write("\n")
+	# Returns a vector representation of a maze index
+	def index_to_vector(index):
+		return {
+			"x": int(index % maze_width),
+			"y": int(int(index - index % maze_width) / maze_width)
+		}
 
-	def index_to_position(index):
-		i_x = index % maze_width
-		return "[{0}, {1}]".format(str(i_x), str(int(index - i_x) / maze_width))
-	
-	res = {
-		"state-result": "None"
-	}
-
-	player_x = 0
-	player_y = 0
-	domokun_x = 0
-	domokun_y = 0
-	end_point_x = maze_width
-	end_point_y = maze_height
-	snooper_x = 0
-	snooper_y = 0
+	# Loop vars
 	maze = get_maze_state(maze_id)
 	catalog = get_maze_catalog(maze)
 	heat_map = [0] * (maze_width * maze_height)
 	old_domokun_index = -1
-
 	j = 0
-	logger.log("", "=====")
-	while player_x != end_point_x or player_y != end_point_y:
-		logger.log(maze_id, "Step #{0}".format(str(j + 1)))
+	cont_loop = True
+
+	# PF loop
+	while cont_loop:
+		# Decrement heatmap values; recent cells should have a higher penalty associated with moving on them
 		for i in range(0, len(heat_map)):
 			if heat_map[i] > 0:
 				heat_map[i] -= 1
-		logger.log(maze_id, "Generated heatmap")
+
+		# Var declaration
 		maze = get_maze_state(maze_id)
 		player_x = int((maze["pony"][0]) % maze_width)
 		player_y = int(int(maze["pony"][0] - player_x) / maze_width)
-		snooper_x = player_x
-		snooper_y = player_y
 		domokun_x = int(maze["domokun"][0]) % maze_width
 		domokun_y = int(int(maze["domokun"][0] - domokun_x) / maze_width)
 		end_point_x = int(maze["end-point"][0]) % maze_width
 		end_point_y = int(int(maze["end-point"][0] - end_point_x) / maze_width)
 		
+		# Explore the current options for moving the player
 		current_options = maze["data"][player_x + player_y * maze_width]
 		try:
 			options_right = maze["data"][(player_x + 1) + player_y * maze_width]
@@ -175,49 +156,69 @@ def find_path_to_exit(maze_id):
 			options_bottom = maze["data"][player_x + (player_y + 1) * maze_width]
 		except IndexError as e:
 			options_bottom = []
-		
-		top_index = (snooper_x + 0) + (snooper_y - 1) * maze_width
-		bot_index = (snooper_x + 0) + (snooper_y + 1) * maze_width
-		lef_index = (snooper_x - 1) + (snooper_y + 0) * maze_width
-		rig_index = (snooper_x + 1) + (snooper_y + 0) * maze_width
-		logger.log(maze_id, "Found indecies")
-		logger.log(maze_id, "Indecies:\n\tN: {0}\n\tS: {1}\n\tW: {2}\n\tE: {3}".format(str(index_to_position(top_index)), str(index_to_position(bot_index)), str(index_to_position(lef_index)), str(index_to_position(rig_index))))
 
-		top_node_dist = 9998 if "north" in current_options or top_index < 0 else catalog[top_index]
-		bot_node_dist = 9998 if "north" in options_bottom or bot_index > maze_height * maze_height else catalog[bot_index]
-		lef_node_dist = 9998 if "west" in current_options or lef_index < 0 else catalog[lef_index]
-		rig_node_dist = 9998 if "west" in options_right or rig_index > maze_width * maze_height else catalog[rig_index]
-		logger.log(maze_id, "Assigned weight to indecies")
+		# Get indecies of the neighboring tiles
+		top_index = index_to_vector((player_x + 0) + (player_y - 1) * maze_width)
+		bot_index = index_to_vector((player_x + 0) + (player_y + 1) * maze_width)
+		lef_index = index_to_vector((player_x - 1) + (player_y + 0) * maze_width)
+		rig_index = index_to_vector((player_x + 1) + (player_y + 0) * maze_width)
+		#print("\tTop\t" + str(top_index))
+		#print("\tBottom\t" + str(bot_index))
+		#print("\tLeft\t" + str(lef_index))
+		#print("\tRight\t" + str(rig_index))
+		#print("===")
 
+		# Assign an 'impossibly' high number to walled section, discouraging the AI from wanting to move there
+		top_node_dist = 9998 if "north" in current_options or top_index["y"] < 0 else catalog[top_index["x"] + top_index["y"] * maze_width]
+		bot_node_dist = 9998 if "north" in options_bottom or bot_index["y"] >= maze_height else catalog[bot_index["x"] + bot_index["y"] * maze_width]
+		lef_node_dist = 9998 if "west" in current_options or lef_index["x"] < 0 else catalog[lef_index["x"] + lef_index["y"] * maze_width]
+		rig_node_dist = 9998 if "west" in options_right or rig_index["x"] > maze_width else catalog[rig_index["x"] + rig_index["y"] * maze_width]
+
+		# Assign a minor pentalty for moving in the same spot repeatedly encouraging exploration of new areas
+		# This should always significantly be lower than the penalty for moving onto the monster, since
+		# moving in the same spot for a while is more desireable, than moving onto the monster
 		heat_map[player_x + player_y * maze_width] = 100
+
+		# Storing the old position so we can remove the penalty once the monster moves
 		if old_domokun_index > -1:
-			heat_map[old_domokun_index] -= 9998
-		heat_map[domokun_x + domokun_y * maze_width] = 9999
+			heat_map[old_domokun_index] -= 999998
 		old_domokun_index = domokun_x + domokun_y * maze_width
-		logger.log(maze_id, "Adjusted for monster location")
 
+		# The penalty for moving onto the monster should be 'impossibly' high
+		heat_map[domokun_x + domokun_y * maze_width] = 999999
+
+		# Adjust for index out of bounds errors
+		top_heat = 9998 if top_index["y"] < 0 else heat_map[top_index["x"] + top_index["y"] * maze_width]
+		bot_heat = 9998 if bot_index["y"] >= maze_height else heat_map[bot_index["x"] + bot_index["y"] * maze_width]
+		lef_heat = 9998 if lef_index["x"] < 0 else heat_map[lef_index["x"] + lef_index["y"] * maze_width]
+		rig_heat = 9998 if rig_index["x"] > maze_width else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
+
+		# Create a dictionary of the possible directions, sorts it based on the penalties then picks the 'cheapest' one
 		directions = {
-			"north": top_node_dist + heat_map[(snooper_x + 0) + (snooper_y - 1) * maze_width],
-			"south": bot_node_dist + heat_map[(snooper_x + 0) + (snooper_y + 1) * maze_width],
-			"west": lef_node_dist + heat_map[(snooper_x - 1) + (snooper_y + 0) * maze_width],
-			"east": rig_node_dist + heat_map[(snooper_x + 1) + (snooper_y + 0) * maze_width]
+			"north": top_node_dist + top_heat,
+			"south": bot_node_dist + bot_heat,
+			"west": lef_node_dist + lef_heat,
+			"east": rig_node_dist + rig_heat
 		}
-
 		direction = sorted(directions.items(), key=operator.itemgetter(1))[0][0]
+
+		# Update the console with the progress
 		sys.stdout.write("[{0:.2f}]\tSolving{1}\r".format(catalog[player_x + player_y * maze_width], spinner[j % 3]))
 		sys.stdout.flush()
-		logger.log(maze_id, "Decided location ({0})".format(direction))
+
+		# Send move request
 		res = move_player(direction, maze_id)
 
-		logger.log(maze_id, "Moved player")
+		# Write maze state to replay files 
 		open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(j), "w").write(get_maze_ascii(maze_id))
-		
-		logger.log(maze_id, "Wrote to replay")
+
 
 		j += 1
+		cont_loop = player_x != end_point_x or player_y != end_point_y
 		if res["state-result"] == "You lost. Killed by monster":
 			break;
 	print("Final result: " + res["state-result"])
+	open(base_path + "\\" + maze_id + "\\final_result.txt", "w").write(res["state-result"])
 
 if __name__ == "__main__":
 	clear()
@@ -228,12 +229,12 @@ if __name__ == "__main__":
 	if(maze["error"] == ""):
 		maze_id = maze["response"]
 		print("Created maze with data " + maze_id)
-		maze_payload = maze["payload"]
-		download_maze_data(maze_id, maze_payload)
+		if(os.path.isdir(base_path + "\\" + maze_id)):
+			print("Error: Maze with ID " + maze_id + " has already been processed")
+			exit()
+		else:
+			os.mkdir(base_path + "\\" + maze_id)
+			os.mkdir(base_path + "\\" + maze_id + "\\mazes")
 		find_path_to_exit(maze_id)
-
-		#for i in range(0, 100):
-		#	move_player(random.choice(valid_directions), maze_id)
-		#	open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(i), "w").write(get_maze_ascii(maze_id))
 	else:
 		print(maze["error"] + " upon creating maze: " + str(maze["exception"]))
