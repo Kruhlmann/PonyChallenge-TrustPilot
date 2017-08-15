@@ -187,18 +187,32 @@ def find_path_to_exit(maze_id):
 		heat_map[player_x + player_y * maze_width] = 100
 
 
-		# Assign ridiculous penalties to avaliable monster moves. 
-		#print("Monster position:\n\tX: {0}\n\tY: {1}".format(str(domokun_x), str(domokun_y)))
+		# Assign ridiculous penalties to avaliable monster moves.
 		domokun_options = []
-		if "north" not in maze["data"][domokun_x + domokun_y * maze_width]:
-			domokun_options.append("north")
-		if "west" not in maze["data"][domokun_x + domokun_y * maze_width]:
-			domokun_options.append("west")
-		if "west" not in maze["data"][(domokun_x + 1) + domokun_y * maze_width]:
-			domokun_options.append("east")
-		if "north" not in maze["data"][domokun_x + (domokun_y + 1) * maze_width]:
-			domokun_options.append("south")
+		try:
+			if "north" not in maze["data"][domokun_x + domokun_y * maze_width]:
+				domokun_options.append("north")
+		except IndexError:
+			pass
+		try:
+			if "west" not in maze["data"][domokun_x + domokun_y * maze_width]:
+				domokun_options.append("west")
+		except IndexError:
+			pass
+		try:
+			if "west" not in maze["data"][(domokun_x + 1) + domokun_y * maze_width]:
+				domokun_options.append("east")
+		except IndexError:
+			pass
+		try:
+			if "north" not in maze["data"][domokun_x + (domokun_y + 1) * maze_width]:
+				domokun_options.append("south")
+		except IndexError:
+			pass
 
+		# Find avaliable moves for the monster, and assign penalties for moving to those locations.
+		# Will in almost all cases prevent collision between the monster and the player
+		# Exceptions include situations where the only escape path is blocked by the monster
 		domokun_affected_tiles = []
 		if "north" in domokun_options:
 			domokun_affected_tiles.append((domokun_x + 0) + (domokun_y - 1) * maze_width)
@@ -208,7 +222,6 @@ def find_path_to_exit(maze_id):
 			domokun_affected_tiles.append((domokun_x + 1) + (domokun_y + 0) * maze_width)
 		if "south" in domokun_options:
 			domokun_affected_tiles.append((domokun_x + 0) + (domokun_y + 1) * maze_width)
-		#print("\tOptions: {0}".format(str(domokun_affected_tiles)))
 
 		# Storing the old position so we can remove the penalty once the monster moves
 		if old_domokun_index > -1:
@@ -224,10 +237,10 @@ def find_path_to_exit(maze_id):
 				heat_map[index] = 999998
 
 		# Adjust for index out of bounds errors
-		top_heat = 9998 if top_index["y"] < 0 else heat_map[top_index["x"] + top_index["y"] * maze_width]
-		bot_heat = 9998 if bot_index["y"] >= maze_height else heat_map[bot_index["x"] + bot_index["y"] * maze_width]
-		lef_heat = 9998 if lef_index["x"] < 0 else heat_map[lef_index["x"] + lef_index["y"] * maze_width]
-		rig_heat = 9998 if rig_index["x"] >= maze_width else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
+		top_heat = 9998 if top_index["y"] < 0 				else heat_map[top_index["x"] + top_index["y"] * maze_width]
+		bot_heat = 9998 if bot_index["y"] >= maze_height 	else heat_map[bot_index["x"] + bot_index["y"] * maze_width]
+		lef_heat = 9998 if lef_index["x"] < 0 				else heat_map[lef_index["x"] + lef_index["y"] * maze_width]
+		rig_heat = 9998 if rig_index["x"] >= maze_width 	else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
 
 		# Create a dictionary of the possible directions, sorts it based on the penalties then picks the 'cheapest' one
 		directions = {
