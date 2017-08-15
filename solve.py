@@ -7,6 +7,7 @@ import operator
 import subprocess
 import time
 import sys
+import logger
 from PIL import Image
 
 base_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
@@ -16,6 +17,8 @@ maze_height = 25
 
 cells = []
 cell_clusters = []
+
+spinner = [".  ", ".. ", "..."]
 
 valid_directions = [
 	"north",
@@ -123,6 +126,10 @@ def find_path_to_exit(maze_id):
 				for x in range(0, maze_width):
 					f.write(str(int(catalog[x + y * maze_width])) + "\t")
 				f.write("\n")
+
+	def index_to_position(index):
+		i_x = index % maze_width
+		return "[{0}, {1}]".format(str(i_x), str(int(index - i_x) / maze_width))
 	
 	res = {
 		"state-result": "None"
@@ -142,10 +149,13 @@ def find_path_to_exit(maze_id):
 	old_domokun_index = -1
 
 	j = 0
-	while player_x != end_point_x and player_y != end_point_y and res["state-result"] != "You lost. Killed by monster":
+	logger.log("", "=====")
+	while player_x != end_point_x or player_y != end_point_y:
+		logger.log(maze_id, "Step #{0}".format(str(j + 1)))
 		for i in range(0, len(heat_map)):
 			if heat_map[i] > 0:
 				heat_map[i] -= 1
+		logger.log(maze_id, "Generated heatmap")
 		maze = get_maze_state(maze_id)
 		player_x = int((maze["pony"][0]) % maze_width)
 		player_y = int(int(maze["pony"][0] - player_x) / maze_width)
@@ -157,32 +167,34 @@ def find_path_to_exit(maze_id):
 		end_point_y = int(int(maze["end-point"][0] - end_point_x) / maze_width)
 		
 		current_options = maze["data"][player_x + player_y * maze_width]
-		
-		if player_x >= maze_width:
-			options_right = []
-		else:
+		try:
 			options_right = maze["data"][(player_x + 1) + player_y * maze_width]
-
-		if player_y >= maze_height:
-			options_bottom = []
-		else:
+		except IndexError as e:
+			options_right = []
+		try:
 			options_bottom = maze["data"][player_x + (player_y + 1) * maze_width]
+		except IndexError as e:
+			options_bottom = []
 		
 		top_index = (snooper_x + 0) + (snooper_y - 1) * maze_width
 		bot_index = (snooper_x + 0) + (snooper_y + 1) * maze_width
 		lef_index = (snooper_x - 1) + (snooper_y + 0) * maze_width
 		rig_index = (snooper_x + 1) + (snooper_y + 0) * maze_width
+		logger.log(maze_id, "Found indecies")
+		logger.log(maze_id, "Indecies:\n\tN: {0}\n\tS: {1}\n\tW: {2}\n\tE: {3}".format(str(index_to_position(top_index)), str(index_to_position(bot_index)), str(index_to_position(lef_index)), str(index_to_position(rig_index))))
 
 		top_node_dist = 9998 if "north" in current_options or top_index < 0 else catalog[top_index]
 		bot_node_dist = 9998 if "north" in options_bottom or bot_index > maze_height * maze_height else catalog[bot_index]
 		lef_node_dist = 9998 if "west" in current_options or lef_index < 0 else catalog[lef_index]
 		rig_node_dist = 9998 if "west" in options_right or rig_index > maze_width * maze_height else catalog[rig_index]
+		logger.log(maze_id, "Assigned weight to indecies")
 
 		heat_map[player_x + player_y * maze_width] = 100
 		if old_domokun_index > -1:
 			heat_map[old_domokun_index] -= 9998
 		heat_map[domokun_x + domokun_y * maze_width] = 9999
 		old_domokun_index = domokun_x + domokun_y * maze_width
+		logger.log(maze_id, "Adjusted for monster location")
 
 		directions = {
 			"north": top_node_dist + heat_map[(snooper_x + 0) + (snooper_y - 1) * maze_width],
@@ -190,12 +202,22 @@ def find_path_to_exit(maze_id):
 			"west": lef_node_dist + heat_map[(snooper_x - 1) + (snooper_y + 0) * maze_width],
 			"east": rig_node_dist + heat_map[(snooper_x + 1) + (snooper_y + 0) * maze_width]
 		}
+
 		direction = sorted(directions.items(), key=operator.itemgetter(1))[0][0]
+		sys.stdout.write("[{0:.2f}]\tSolving{1}\r".format(catalog[player_x + player_y * maze_width], spinner[j % 3]))
+		sys.stdout.flush()
+		logger.log(maze_id, "Decided location ({0})".format(direction))
 		res = move_player(direction, maze_id)
+
+		logger.log(maze_id, "Moved player")
 		open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(j), "w").write(get_maze_ascii(maze_id))
-		print("Current distance: {0:.2f}".format(catalog[player_x + player_y * maze_width]))
+		
+		logger.log(maze_id, "Wrote to replay")
+
 		j += 1
-	print("Result: " + res["state-result"])
+		if res["state-result"] == "You lost. Killed by monster":
+			break;
+	print("Final result: " + res["state-result"])
 
 if __name__ == "__main__":
 	clear()
