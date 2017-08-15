@@ -119,7 +119,7 @@ def find_path_to_exit(maze_id):
 	def index_to_vector(index):
 		return {
 			"x": int(index % maze_width),
-			"y": int(int(index - index % maze_width) / maze_width)
+			"y": int(int(index - index % maze_width) / maze_width) % maze_height
 		}
 
 	# Loop vars
@@ -162,17 +162,12 @@ def find_path_to_exit(maze_id):
 		bot_index = index_to_vector((player_x + 0) + (player_y + 1) * maze_width)
 		lef_index = index_to_vector((player_x - 1) + (player_y + 0) * maze_width)
 		rig_index = index_to_vector((player_x + 1) + (player_y + 0) * maze_width)
-		#print("\tTop\t" + str(top_index))
-		#print("\tBottom\t" + str(bot_index))
-		#print("\tLeft\t" + str(lef_index))
-		#print("\tRight\t" + str(rig_index))
-		#print("===")
 
 		# Assign an 'impossibly' high number to walled section, discouraging the AI from wanting to move there
 		top_node_dist = 9998 if "north" in current_options or top_index["y"] < 0 else catalog[top_index["x"] + top_index["y"] * maze_width]
 		bot_node_dist = 9998 if "north" in options_bottom or bot_index["y"] >= maze_height else catalog[bot_index["x"] + bot_index["y"] * maze_width]
 		lef_node_dist = 9998 if "west" in current_options or lef_index["x"] < 0 else catalog[lef_index["x"] + lef_index["y"] * maze_width]
-		rig_node_dist = 9998 if "west" in options_right or rig_index["x"] > maze_width else catalog[rig_index["x"] + rig_index["y"] * maze_width]
+		rig_node_dist = 9998 if "west" in options_right or rig_index["x"] >= maze_width else catalog[rig_index["x"] + rig_index["y"] * maze_width]
 
 		# Assign a minor pentalty for moving in the same spot repeatedly encouraging exploration of new areas
 		# This should always significantly be lower than the penalty for moving onto the monster, since
@@ -191,7 +186,7 @@ def find_path_to_exit(maze_id):
 		top_heat = 9998 if top_index["y"] < 0 else heat_map[top_index["x"] + top_index["y"] * maze_width]
 		bot_heat = 9998 if bot_index["y"] >= maze_height else heat_map[bot_index["x"] + bot_index["y"] * maze_width]
 		lef_heat = 9998 if lef_index["x"] < 0 else heat_map[lef_index["x"] + lef_index["y"] * maze_width]
-		rig_heat = 9998 if rig_index["x"] > maze_width else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
+		rig_heat = 9998 if rig_index["x"] >= maze_width else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
 
 		# Create a dictionary of the possible directions, sorts it based on the penalties then picks the 'cheapest' one
 		directions = {
