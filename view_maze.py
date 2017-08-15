@@ -3,7 +3,7 @@ import subprocess
 import numbers
 import time
 
-iter_path = "C:\\Users\\z003ftnb\\Desktop\\Mazes\\"
+iter_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
 mazes = []
 
 def is_number(value):
@@ -46,7 +46,6 @@ def show_maze_progression(maze_id):
 	i = 0
 	while os.path.isfile(maze_folder + str(i) + ".txt"):
 		clear()
-		print(str(i) + ".txt")
 		with open(maze_folder + str(i) + ".txt") as f: print(f.read())
 		time.sleep(0.2)
 		i += 1
