@@ -4,6 +4,9 @@ import os
 import json
 import math
 import operator
+import subprocess
+import time
+import sys
 from PIL import Image
 
 base_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
@@ -88,13 +91,19 @@ def move_player(direction, maze_id):
 		payload = {
 			"direction": direction
 		}
-		print(str(payload))
 		payload_json = json.dumps(payload).encode("utf-8")
 		req = urllib.request.Request(api_calls["get_maze"].format(maze_id), data=payload_json, headers={'Content-Type': 'application/json'})
 		response = urllib.request.urlopen(req)
 		json_response = json.loads(response.read().decode("utf-8"))
 		return(json_response)
 
+def clear():
+	if os.name in ('nt','dos'):
+		subprocess.call("cls", shell=True)
+	elif os.name in ('linux','osx','posix'):
+		subprocess.call("clear", shell=True)
+	else:
+		print("\n"*120)
 
 def find_path_to_exit(maze_id):
 
@@ -114,10 +123,7 @@ def find_path_to_exit(maze_id):
 				for x in range(0, maze_width):
 					f.write(str(int(catalog[x + y * maze_width])) + "\t")
 				f.write("\n")
-
-	path = []
-	closed = []
-	i = 0
+	
 	res = {
 		"state-result": "None"
 	}
@@ -130,10 +136,17 @@ def find_path_to_exit(maze_id):
 	end_point_y = maze_height
 	snooper_x = 0
 	snooper_y = 0
+	maze = get_maze_state(maze_id)
+	catalog = get_maze_catalog(maze)
+	heat_map = [0] * (maze_width * maze_height)
+	old_domokun_index = -1
 
+	j = 0
 	while player_x != end_point_x and player_y != end_point_y and res["state-result"] != "You lost. Killed by monster":
+		for i in range(0, len(heat_map)):
+			if heat_map[i] > 0:
+				heat_map[i] -= 1
 		maze = get_maze_state(maze_id)
-		catalog = get_maze_catalog(maze)
 		player_x = int((maze["pony"][0]) % maze_width)
 		player_y = int(int(maze["pony"][0] - player_x) / maze_width)
 		snooper_x = player_x
@@ -142,53 +155,50 @@ def find_path_to_exit(maze_id):
 		domokun_y = int(int(maze["domokun"][0] - domokun_x) / maze_width)
 		end_point_x = int(maze["end-point"][0]) % maze_width
 		end_point_y = int(int(maze["end-point"][0] - end_point_x) / maze_width)
-		current_options = maze["data"][player_x + player_y * maze_width]
-		options_right = maze["data"][(player_x + 1) + player_y * maze_width] if player_x < maze_width else []
-		options_bottom = maze["data"][player_x + (player_y + 1) * maze_width] if player_y < maze_height else []
-
-		closed.append(player_x + player_y * maze_width)
-
-		avaliable_directions = {
-			"north": "north" not in current_options,
-			"east": "west" not in options_right,
-			"south": "north" not in options_bottom,
-			"west": "west" not in current_options,
-		}
-
-		avaliable_directions = []
-		if("north" not in current_options):
-			avaliable_directions.append("north")
-		if("west" not in current_options):
-			avaliable_directions.append("west")
-		if("north" not in options_bottom): 
-			avaliable_directions.append("south")
-		if("west" not in options_right): 
-			avaliable_directions.append("east")
-
-		print(get_maze_ascii(maze_id))
-
-		print("Current options: " + str(avaliable_directions))
 		
-		this_node_dist = catalog[(snooper_x + 0) + (snooper_y + 0) * maze_width]
-		top_node_dist = 9999 if "north" in current_options else catalog[(snooper_x + 0) + (snooper_y - 1) * maze_width]
-		bottom_node_dist = 9999 if "north" in options_bottom else catalog[(snooper_x + 0) + (snooper_y + 1) * maze_width]
-		left_node_dist = 9999 if "west" in current_options else catalog[(snooper_x - 1) + (snooper_y + 0) * maze_width]
-		right_node_dist = 9999 if "west" in options_right else catalog[(snooper_x + 1) + (snooper_y + 0) * maze_width]
+		current_options = maze["data"][player_x + player_y * maze_width]
+		
+		if player_x >= maze_width:
+			options_right = []
+		else:
+			options_right = maze["data"][(player_x + 1) + player_y * maze_width]
+
+		if player_y >= maze_height:
+			options_bottom = []
+		else:
+			options_bottom = maze["data"][player_x + (player_y + 1) * maze_width]
+		
+		top_index = (snooper_x + 0) + (snooper_y - 1) * maze_width
+		bot_index = (snooper_x + 0) + (snooper_y + 1) * maze_width
+		lef_index = (snooper_x - 1) + (snooper_y + 0) * maze_width
+		rig_index = (snooper_x + 1) + (snooper_y + 0) * maze_width
+
+		top_node_dist = 9998 if "north" in current_options or top_index < 0 else catalog[top_index]
+		bot_node_dist = 9998 if "north" in options_bottom or bot_index > maze_height * maze_height else catalog[bot_index]
+		lef_node_dist = 9998 if "west" in current_options or lef_index < 0 else catalog[lef_index]
+		rig_node_dist = 9998 if "west" in options_right or rig_index > maze_width * maze_height else catalog[rig_index]
+
+		heat_map[player_x + player_y * maze_width] = 100
+		if old_domokun_index > -1:
+			heat_map[old_domokun_index] -= 9998
+		heat_map[domokun_x + domokun_y * maze_width] = 9999
+		old_domokun_index = domokun_x + domokun_y * maze_width
 
 		directions = {
-			"north": 9998 if ((snooper_x + 0) + (snooper_y - 1) * maze_width) in closed else top_node_dist,
-			"south": 9998 if ((snooper_x + 0) + (snooper_y + 1) * maze_width) in closed else bottom_node_dist,
-			"west": 9998 if ((snooper_x - 1) + (snooper_y + 0) * maze_width) in closed else left_node_dist,
-			"east": 9998 if ((snooper_x + 1) + (snooper_y + 0) * maze_width) in closed else right_node_dist
+			"north": top_node_dist + heat_map[(snooper_x + 0) + (snooper_y - 1) * maze_width],
+			"south": bot_node_dist + heat_map[(snooper_x + 0) + (snooper_y + 1) * maze_width],
+			"west": lef_node_dist + heat_map[(snooper_x - 1) + (snooper_y + 0) * maze_width],
+			"east": rig_node_dist + heat_map[(snooper_x + 1) + (snooper_y + 0) * maze_width]
 		}
 		direction = sorted(directions.items(), key=operator.itemgetter(1))[0][0]
-		print(directions)
-		print("Moved " + direction)
 		res = move_player(direction, maze_id)
-		open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(i), "w").write(get_maze_ascii(maze_id))
-		i += 1
+		open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(j), "w").write(get_maze_ascii(maze_id))
+		print("Current distance: {0:.2f}".format(catalog[player_x + player_y * maze_width]))
+		j += 1
+	print("Result: " + res["state-result"])
 
 if __name__ == "__main__":
+	clear()
 	if(not os.path.isdir(base_path)):
 		os.mkdir(base_path)
 
@@ -199,11 +209,9 @@ if __name__ == "__main__":
 		maze_payload = maze["payload"]
 		download_maze_data(maze_id, maze_payload)
 		find_path_to_exit(maze_id)
-		print(get_maze_ascii(maze_id))
 
 		#for i in range(0, 100):
 		#	move_player(random.choice(valid_directions), maze_id)
 		#	open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(i), "w").write(get_maze_ascii(maze_id))
-
 	else:
 		print(maze["error"] + " upon creating maze: " + str(maze["exception"]))
