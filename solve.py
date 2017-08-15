@@ -10,14 +10,28 @@ import sys
 import logger
 from PIL import Image
 
+#
+# Copyright <2017> <ANDREAS KRUHLMANN>
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
+# files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, 
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons 
+# to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
+# AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+
+# Path where maze replays will be stored
 base_path = os.path.join(os.environ["HOMEPATH"], "Desktop\\Mazes")
 
 # This is defined in the challenge. Fits nicely into a 16:9 default CMD.
 maze_width = 15
 maze_height = 25
-
-cells = []
-cell_clusters = []
 
 spinner = [".  ", ".. ", "..."]
 
@@ -84,9 +98,7 @@ def move_player(direction, maze_id):
 	if(direction not in valid_directions):
 		print("Invalid direction: " + direction)
 	else:
-		payload = {
-			"direction": direction
-		}
+		payload = { "direction": direction }
 		payload_json = json.dumps(payload).encode("utf-8")
 		req = urllib.request.Request(api_calls["get_maze"].format(maze_id), data=payload_json, headers={'Content-Type': 'application/json'})
 		response = urllib.request.urlopen(req)
@@ -122,7 +134,7 @@ def find_path_to_exit(maze_id):
 			"y": int(int(index - index % maze_width) / maze_width) % maze_height
 		}
 
-	# Loop vars
+	# Loop related variables
 	maze = get_maze_state(maze_id)
 	catalog = get_maze_catalog(maze)
 	heat_map = [0] * (maze_width * maze_height)
@@ -137,7 +149,7 @@ def find_path_to_exit(maze_id):
 			if heat_map[i] > 0:
 				heat_map[i] -= 1
 
-		# Var declaration
+		# Variable declarations
 		maze = get_maze_state(maze_id)
 		player_x = int((maze["pony"][0]) % maze_width)
 		player_y = int(int(maze["pony"][0] - player_x) / maze_width)
@@ -174,13 +186,42 @@ def find_path_to_exit(maze_id):
 		# moving in the same spot for a while is more desireable, than moving onto the monster
 		heat_map[player_x + player_y * maze_width] = 100
 
+
+		# Assign ridiculous penalties to avaliable monster moves. 
+		#print("Monster position:\n\tX: {0}\n\tY: {1}".format(str(domokun_x), str(domokun_y)))
+		domokun_options = []
+		if "north" not in maze["data"][domokun_x + domokun_y * maze_width]:
+			domokun_options.append("north")
+		if "west" not in maze["data"][domokun_x + domokun_y * maze_width]:
+			domokun_options.append("west")
+		if "west" not in maze["data"][(domokun_x + 1) + domokun_y * maze_width]:
+			domokun_options.append("east")
+		if "north" not in maze["data"][domokun_x + (domokun_y + 1) * maze_width]:
+			domokun_options.append("south")
+
+		domokun_affected_tiles = []
+		if "north" in domokun_options:
+			domokun_affected_tiles.append((domokun_x + 0) + (domokun_y - 1) * maze_width)
+		if "west" in domokun_options:
+			domokun_affected_tiles.append((domokun_x - 1) + (domokun_y + 0) * maze_width)
+		if "east" in domokun_options:
+			domokun_affected_tiles.append((domokun_x + 1) + (domokun_y + 0) * maze_width)
+		if "south" in domokun_options:
+			domokun_affected_tiles.append((domokun_x + 0) + (domokun_y + 1) * maze_width)
+		#print("\tOptions: {0}".format(str(domokun_affected_tiles)))
+
 		# Storing the old position so we can remove the penalty once the monster moves
 		if old_domokun_index > -1:
 			heat_map[old_domokun_index] -= 999998
+			for index in old_domokun_affected_tiles:
+				heat_map[index] -= 999997
 		old_domokun_index = domokun_x + domokun_y * maze_width
+		old_domokun_affected_tiles = domokun_affected_tiles
 
-		# The penalty for moving onto the monster should be 'impossibly' high
+		# The penalty for moving onto/close to the monster should be 'impossibly' high
 		heat_map[domokun_x + domokun_y * maze_width] = 999999
+		for index in domokun_affected_tiles:
+				heat_map[index] = 999998
 
 		# Adjust for index out of bounds errors
 		top_heat = 9998 if top_index["y"] < 0 else heat_map[top_index["x"] + top_index["y"] * maze_width]
@@ -206,7 +247,6 @@ def find_path_to_exit(maze_id):
 
 		# Write maze state to replay files 
 		open(base_path + "\\" + maze_id + "\\mazes\\{0}.txt".format(j), "w").write(get_maze_ascii(maze_id))
-
 
 		j += 1
 		cont_loop = player_x != end_point_x or player_y != end_point_y
