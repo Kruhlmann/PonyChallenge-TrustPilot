@@ -114,7 +114,7 @@ def clear():
 	else:
 		print("\n"*120)
 
-# Main path finding method. Finds the exit based on distance, previous positions and a dynamic heatmap
+# Main path finding method. Finds the exit based on distance, previous positions and player trail
 def find_path_to_exit(maze_id):
 
 	# Returns a list of all positions and their distance to the exit
@@ -137,7 +137,7 @@ def find_path_to_exit(maze_id):
 	# Loop related variables
 	maze = get_maze_state(maze_id)
 	catalog = get_maze_catalog(maze)
-	heat_map = [0] * (maze_width * maze_height)
+	player_trail = [0] * (maze_width * maze_height)
 	old_domokun_index = -1
 	j = 0
 	cont_loop = True
@@ -145,9 +145,9 @@ def find_path_to_exit(maze_id):
 	# PF loop
 	while cont_loop:
 		# Decrement heatmap values; recent cells should have a higher penalty associated with moving on them
-		for i in range(0, len(heat_map)):
-			if heat_map[i] > 0:
-				heat_map[i] -= 1
+		for i in range(0, len(player_trail)):
+			if player_trail[i] > 0:
+				player_trail[i] -= 1
 
 		# Variable declarations
 		maze = get_maze_state(maze_id)
@@ -184,7 +184,7 @@ def find_path_to_exit(maze_id):
 		# Assign a minor pentalty for moving in the same spot repeatedly encouraging exploration of new areas
 		# This should always significantly be lower than the penalty for moving onto the monster, since
 		# moving in the same spot for a while is more desireable, than moving onto the monster
-		heat_map[player_x + player_y * maze_width] = 100
+		player_trail[player_x + player_y * maze_width] = 100
 
 
 		# Assign ridiculous penalties to avaliable monster moves.
@@ -225,22 +225,22 @@ def find_path_to_exit(maze_id):
 
 		# Storing the old position so we can remove the penalty once the monster moves
 		if old_domokun_index > -1:
-			heat_map[old_domokun_index] -= 999998
+			player_trail[old_domokun_index] -= 999998
 			for index in old_domokun_affected_tiles:
-				heat_map[index] -= 999997
+				player_trail[index] -= 999997
 		old_domokun_index = domokun_x + domokun_y * maze_width
 		old_domokun_affected_tiles = domokun_affected_tiles
 
 		# The penalty for moving onto/close to the monster should be 'impossibly' high
-		heat_map[domokun_x + domokun_y * maze_width] = 999999
+		player_trail[domokun_x + domokun_y * maze_width] = 999999
 		for index in domokun_affected_tiles:
-				heat_map[index] = 999998
+				player_trail[index] = 999998
 
 		# Adjust for index out of bounds errors
-		top_heat = 9998 if top_index["y"] < 0 				else heat_map[top_index["x"] + top_index["y"] * maze_width]
-		bot_heat = 9998 if bot_index["y"] >= maze_height 	else heat_map[bot_index["x"] + bot_index["y"] * maze_width]
-		lef_heat = 9998 if lef_index["x"] < 0 				else heat_map[lef_index["x"] + lef_index["y"] * maze_width]
-		rig_heat = 9998 if rig_index["x"] >= maze_width 	else heat_map[rig_index["x"] + rig_index["y"] * maze_width]
+		top_heat = 9998 if top_index["y"] < 0 				else player_trail[top_index["x"] + top_index["y"] * maze_width]
+		bot_heat = 9998 if bot_index["y"] >= maze_height 	else player_trail[bot_index["x"] + bot_index["y"] * maze_width]
+		lef_heat = 9998 if lef_index["x"] < 0 				else player_trail[lef_index["x"] + lef_index["y"] * maze_width]
+		rig_heat = 9998 if rig_index["x"] >= maze_width 	else player_trail[rig_index["x"] + rig_index["y"] * maze_width]
 
 		# Create a dictionary of the possible directions, sorts it based on the penalties then picks the 'cheapest' one
 		directions = {
