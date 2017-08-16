@@ -144,7 +144,7 @@ def find_path_to_exit(maze_id):
 
 	# PF loop
 	while cont_loop:
-		# Decrement heatmap values; recent cells should have a higher penalty associated with moving on them
+		# Decrement player trail values; recent cells should have a higher penalty associated with moving on them
 		for i in range(0, len(player_trail)):
 			if player_trail[i] > 0:
 				player_trail[i] -= 1
