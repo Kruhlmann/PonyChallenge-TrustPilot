@@ -23,3 +23,12 @@ These costs ensure the following:
 
 ## Demo
 ![demo gif](demo.gif)
+
+## Usage
+Make sure all requirements from the [requirements file](requirements.txt) are installed using `pip install <requirement>`
+
+### Solving a maze
+To solve a maze execute the command `python solve.py`. The result will be placed on the Desktop. 
+
+### Viewing a replay
+Everytime a maze is being solved a replay is saved to the users Desktop. To view the replays execute `python view_maze.py` and input the desired ID from the menu into the prompt. 
