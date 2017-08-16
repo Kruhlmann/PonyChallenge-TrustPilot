@@ -13,3 +13,9 @@ The cost consists of 3 different values:
 | 2   | Trail cost       | [0 -> 100]                                         |
 | 3   | Monster cost     | [999999 -> 999999]                                 |
 
+
+| Tables        | Are           | Cool  |
+| ------------- |:-------------:| -----:|
+| col 3 is      | right-aligned | $1600 |
+| col 2 is      | centered      |   $12 |
+| zebra stripes | are neat      |    $1 |
