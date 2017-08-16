@@ -14,8 +14,8 @@ The cost consists of 3 different values:
 | Monster cost     | \[999999 -> 999999\]                                 |
 
 
-| Name          | Value range  	| Cool  |
-| ------------- | ------------- | ----- |
-| col 3 is      | [0 -> 100]    | $1600 |
-| col 2 is      | centered      |   $12 |
-| zebra stripes | are neat      |    $1 |
+| Name          | Value range                                          	  | Cool  |
+| ------------- | ------------------------------------------------------- | ----- |
+| col 3 is      | \[0 -> `sqrt(maze_width ** 2 + maze_heightn ** 2)`\]    | $1600 |
+| col 2 is      | centered                                                |   $12 |
+| zebra stripes | are neat                                                |    $1 |
