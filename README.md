@@ -13,3 +13,6 @@ The cost consists of 3 different values:
 | Distance to exit         | \[0 -> `sqrt(maze_width ** 2 + maze_heightn ** 2)`\]    |
 | Trail penalty            | \[0 -> 100\]                                            |
 | Monster vicinity penalty | \[999999 -> 999999\]                                    |
+
+## Demo
+![demo gif](demo.gif)
