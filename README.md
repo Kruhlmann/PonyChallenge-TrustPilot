@@ -13,7 +13,7 @@ The cost consists of 4 different values:
 | Distance to exit         | \[0 -> `sqrt(maze_width ** 2 + maze_heightn ** 2)`\]    |
 | Trail penalty            | \[0 -> 100\]                                            |
 | Monster vicinity penalty | \[999999 -> 999999\]                                    |
-| Wall penalty             | \[9999 -> 9999\]                                          |
+| Wall penalty             | \[9999 -> 9999\]                                        |
 
 These penalties ensure the following:
 * If all else is equal the move, which  brings the player closer to the exit will be picked
@@ -32,3 +32,6 @@ To solve a maze execute the command `python solve.py`. The result will be placed
 
 ### Viewing a replay
 Everytime a maze is being solved a replay is saved to the users Desktop. To view the replays execute `python view_maze.py` and input the desired ID from the menu into the prompt. 
+
+## OS support
+Currently the solving script is only supported on Windows, however will run on OSX/Linux with minmimal modifications to the code, specifically to the code that finds the desktop of the user for placing maze files.
